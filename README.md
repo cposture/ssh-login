@@ -52,7 +52,7 @@ chmod +x login.py
 ./login.py inti your_key
 ```
 
-### 修改指定帐号的key
+### 5.3 修改指定帐号的key
 
 ```
 ./login.py mod tip_msg old_key new_key
