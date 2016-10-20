@@ -88,7 +88,7 @@ def saveLoginInfo(data, isoverload=False):
 
 def getLoginByMsg(msg='default'):
     data = getLoginInfo()
-    info = {} 
+    info = {}
     info = data[msg]
     return info
 
@@ -316,9 +316,16 @@ def modPasswd(args):
     saveLoginInfo(login)
 
 def loginCommand(args):
-    tip = inputTipNameWithCheckExist()
+    tips = inputTipNameWithCheckExist()
     key = input('> input key: ')
-    login = decryptPasswd(key,tip)
+    tip = tips[0]
+
+    ency = getAllEncryptLoginInfo()
+    if tip in ency.keys(): 
+        login = decryptPasswd(key,tip)
+    else:
+        login = getAllDecryptLoginInfo()
+ 
     password = login[tip]['Password']
     hostname = login[tip]['Hostname'] 
 
