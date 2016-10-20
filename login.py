@@ -79,7 +79,7 @@ def _storeLoginInfoToFile(data, isoverload=False):
         except Exception as e:
             f.write(json.dumps(old_data, skipkeys=True, encoding = "utf-8", indent = 4))
             print str(e)
-     
+
 def getLoginInfo():
     return _getLoginInfoFromJson()
 
@@ -179,7 +179,6 @@ def ssh_login(hostname, password):
     try:
         ssh = pexpect.spawn('ssh %s' % (hostname))
         winsize = getwinsize();
-        ssh.setwinsize(winsize[0],winsize[1])
         i = ssh.expect(['[pP]assword', 'continue connecting (yes/no)?'], timeout=3)
         if i == 0:
             ssh.sendline(password)
@@ -188,6 +187,7 @@ def ssh_login(hostname, password):
             ssh.sendline(password)
         print 'connect success!'
         print '======================'
+        ssh.setwinsize(winsize[0],winsize[1])
         ssh.interact()
     except pexpect.EOF:
         print "pexpect EOF error"
@@ -208,7 +208,7 @@ def input(msg):
             continue
     return res
 
-def inputTipNameWithCheck(data): 
+def inputTipNameWithCheck(data):
     while(True):
        try:
            tiplist = raw_input("> input tip name: ")
@@ -230,7 +230,7 @@ def inputTipNameWithCheck(data):
 def inputTipNameWithCheckExist():
     data = getLoginInfo()
     return inputTipNameWithCheck(data)
-    
+
 def inputTipNameWithCheckEncrypt():
     data = getAllEncryptLoginInfo()
     return inputTipNameWithCheck(data)
@@ -276,16 +276,16 @@ def add(args):
 
     temp['Password'] = desEncrypt(key, passwd)
     temp['Notice'] = notice
-    temp['HasEncrypt'] = 'True' 
+    temp['HasEncrypt'] = 'True'
     temp['Hostname'] = host
 
     login[tip] = temp
     saveLoginInfo(login)
-        
+
 
 def modKey(args):
     old_key = input('> input old key: ')
-    new_key = input('> input new key: ') 
+    new_key = input('> input new key: ')
     tips = inputTipNameWithCheckEncrypt()
     login = {}
     for i in range(len(tips)):
@@ -296,7 +296,7 @@ def modKey(args):
     saveLoginInfo(login)
 
 def modPasswd(args):
-    key = input('> input key: ') 
+    key = input('> input key: ')
     new_passwd = input('> input new password: ')
     tips = inputTipNameWithCheckExist()
     ency = getAllEncryptLoginInfo()
@@ -321,19 +321,19 @@ def loginCommand(args):
     tip = tips[0]
 
     ency = getAllEncryptLoginInfo()
-    if tip in ency.keys(): 
+    if tip in ency.keys():
         login = decryptPasswd(key,tip)
     else:
         login = getAllDecryptLoginInfo()
- 
+
     password = login[tip]['Password']
-    hostname = login[tip]['Hostname'] 
+    hostname = login[tip]['Hostname']
 
     print 'ssh ' + hostname + '...' + password
- 
+
     ssh_login(hostname, password)
 
-    
+
 command = {'--ency':ency, '--decy': decy, '--add': add, '--mod':modPasswd, '--modkey':modKey}
 
 if __name__ == '__main__':
@@ -344,7 +344,7 @@ if __name__ == '__main__':
         optlist, args = getopt.getopt(sys.argv[1:], '', ['ency','decy','add', 'mod','modkey'])
     except Exception, e:
         print str(e)
-        exit_with_usage() 
+        exit_with_usage()
 
     if (not optlist or optlist and '--add' not in optlist[0]) and os.path.exists(g_LoginFileName) == False:
         print 'ERROR: ' + g_LoginFileName + ' not exist. 请先使用 --add 新增帐号'
@@ -353,5 +353,4 @@ if __name__ == '__main__':
     if optlist:
         command[optlist[0][0]](args)
     else:
-        loginCommand(args) 
-
+        loginCommand(args)
