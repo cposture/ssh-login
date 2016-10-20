@@ -5,28 +5,28 @@
 This is a auto ssh-login script that also can store your password encryptly.
 Usage:
 ./login.py [--add] [--ency] [--decy] [--mod] [--modkey]
-  --add                Ê∑ªÂä†Â∏êÂè∑
-  --ency               Âä†ÂØÜÂØÜÁ†ÅÔºåÈÖçÁΩÆÊñá‰ª∂ÂØÜÁ†Å‰∏∫ÂØÜÊñáÔºåÂõûËΩ¶ÂêéËæìÂÖ• all Êàñ tip name ÂàóË°®
-  --decy               Ëß£ÂØÜÂØÜÁ†ÅÔºåÈÖçÁΩÆÊñá‰ª∂ÂØÜÁ†Å‰∏∫ÊòéÊñáÔºåÂõûËΩ¶ÂêéËæìÂÖ• all Êàñ tip name ÂàóË°®
-  --mod                ‰øÆÊîπÂØÜÁ†ÅÔºåÂõûËΩ¶ÂêéËæìÂÖ• all Êàñ tip name ÂàóË°®
-  --modkey             ‰øÆÊîπkeyÔºåÂõûËΩ¶ÂêéËæìÂÖ• all Êàñ tip name ÂàóË°®
+  --add                ÃÌº”’ ∫≈
+  --ency               º”√‹√‹¬Î£¨≈‰÷√Œƒº˛√‹¬ÎŒ™√‹Œƒ£¨ªÿ≥µ∫Û ‰»Î all ªÚ tip name ¡–±Ì
+  --decy               Ω‚√‹√‹¬Î£¨≈‰÷√Œƒº˛√‹¬ÎŒ™√˜Œƒ£¨ªÿ≥µ∫Û ‰»Î all ªÚ tip name ¡–±Ì
+  --mod                –ﬁ∏ƒ√‹¬Î£¨ªÿ≥µ∫Û ‰»Î all ªÚ tip name ¡–±Ì
+  --modkey             –ﬁ∏ƒkey£¨ªÿ≥µ∫Û ‰»Î all ªÚ tip name ¡–±Ì
 
 Example:
-1. Ê∑ªÂä†
+1. ÃÌº”
 ./login.py --add
   > input new user@ip: root@10.121.123.123
   > input new password: 123
   > input new tip name: testtip
   > input new key: mykey
   > input new notice: test string
-2. ÁôªÂΩï
+2. µ«¬º
 ./login.py
   > input tip name: testtip
   > input key: mykey
-3. Âä†ÂØÜ
+3. º”√‹
 ./login.py --ency
-  > input tip name: all  # ËØ¥ÊòéÔºöËøôÈáå all ‰ª£Ë°®Âä†ÂØÜÈÖçÁΩÆÊñá‰ª∂ÈáåÁöÑÂØÜÁ†ÅÔºàËá™Âä®ÊéíÈô§Â∑≤Âä†ÂØÜÔºâÔºåÊàñËÄÖ ÂèØ‰ª•‰∏∫ tip_name ÂàóË°®
-4. Ëß£ÂØÜ
+  > input tip name: all  # Àµ√˜£∫’‚¿Ô all ¥˙±Ìº”√‹≈‰÷√Œƒº˛¿Ôµƒ√‹¬Î£®◊‘∂Ø≈≈≥˝“—º”√‹£©£¨ªÚ’ﬂ ø…“‘Œ™ tip_name ¡–±Ì
+4. Ω‚√‹
 ./login.py --decy
   > input tip name: testtip
   > input key: mykey
@@ -56,13 +56,17 @@ def exit_with_usage():
     os._exit(1)
 
 def _getLoginInfoFromJson():
+    data = {}
+    if os.path.exists(g_LoginFileName) == False:
+        return data
     with open(g_LoginFileName, 'r') as f:
         data = json.load(f)
     return data
 
 def _storeLoginInfoToFile(data, isoverload=False):
     now = datetime.now()
-    shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+    if os.path.exists(g_LoginFileName):
+        shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
     old_data = _getLoginInfoFromJson()
     with open(g_LoginFileName, 'w') as f:
         try:
@@ -75,7 +79,7 @@ def _storeLoginInfoToFile(data, isoverload=False):
         except Exception as e:
             f.write(json.dumps(old_data, skipkeys=True, encoding = "utf-8", indent = 4))
             print str(e)
-
+     
 def getLoginInfo():
     return _getLoginInfoFromJson()
 
@@ -84,7 +88,7 @@ def saveLoginInfo(data, isoverload=False):
 
 def getLoginByMsg(msg='default'):
     data = getLoginInfo()
-    info = {}
+    info = {} 
     info = data[msg]
     return info
 
@@ -204,7 +208,7 @@ def input(msg):
             continue
     return res
 
-def inputTipNameWithCheck(data):
+def inputTipNameWithCheck(data): 
     while(True):
        try:
            tiplist = raw_input("> input tip name: ")
@@ -226,7 +230,7 @@ def inputTipNameWithCheck(data):
 def inputTipNameWithCheckExist():
     data = getLoginInfo()
     return inputTipNameWithCheck(data)
-
+    
 def inputTipNameWithCheckEncrypt():
     data = getAllEncryptLoginInfo()
     return inputTipNameWithCheck(data)
@@ -272,16 +276,16 @@ def add(args):
 
     temp['Password'] = desEncrypt(key, passwd)
     temp['Notice'] = notice
-    temp['HasEncrypt'] = 'True'
+    temp['HasEncrypt'] = 'True' 
     temp['Hostname'] = host
 
     login[tip] = temp
     saveLoginInfo(login)
-
+        
 
 def modKey(args):
     old_key = input('> input old key: ')
-    new_key = input('> input new key: ')
+    new_key = input('> input new key: ') 
     tips = inputTipNameWithCheckEncrypt()
     login = {}
     for i in range(len(tips)):
@@ -292,7 +296,7 @@ def modKey(args):
     saveLoginInfo(login)
 
 def modPasswd(args):
-    key = input('> input key: ')
+    key = input('> input key: ') 
     new_passwd = input('> input new password: ')
     tips = inputTipNameWithCheckExist()
     ency = getAllEncryptLoginInfo()
@@ -316,13 +320,13 @@ def loginCommand(args):
     key = input('> input key: ')
     login = decryptPasswd(key,tip)
     password = login[tip]['Password']
-    hostname = login[tip]['Hostname']
+    hostname = login[tip]['Hostname'] 
 
     print 'ssh ' + hostname + '...' + password
-
+ 
     ssh_login(hostname, password)
 
-
+    
 command = {'--ency':ency, '--decy': decy, '--add': add, '--mod':modPasswd, '--modkey':modKey}
 
 if __name__ == '__main__':
@@ -333,9 +337,14 @@ if __name__ == '__main__':
         optlist, args = getopt.getopt(sys.argv[1:], '', ['ency','decy','add', 'mod','modkey'])
     except Exception, e:
         print str(e)
+        exit_with_usage() 
+
+    if (not optlist or optlist and '--add' not in optlist[0]) and os.path.exists(g_LoginFileName) == False:
+        print 'ERROR: ' + g_LoginFileName + ' not exist. «Îœ» π”√ --add –¬‘ˆ’ ∫≈'
         exit_with_usage()
 
     if optlist:
         command[optlist[0][0]](args)
     else:
-        loginCommand(args)
+        loginCommand(args) 
+
