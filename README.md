@@ -4,7 +4,7 @@
 2. 密码AES加密，密文存储密码，且只需要记住一个任意长 key，即可解密登录，所有帐号 key 可以相同
 3. 随时添加新账号，修改 key、密码 只需要一条指令
 
-
+![](https://github.com/cposture/ssh-login/blob/master/pic/demo.png)
 
 # 2. Todo
 
