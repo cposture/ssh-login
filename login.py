@@ -101,13 +101,13 @@ STYLE = {
 
 
 def UseStyle(string, mode = '', fore = '', back = ''):
-    mode  = '%s' % STYLE['mode'][mode] if STYLE['mode'].has_key(mode) else ''
-    fore  = '%s' % STYLE['fore'][fore] if STYLE['fore'].has_key(fore) else ''
-    back  = '%s' % STYLE['back'][back] if STYLE['back'].has_key(back) else ''
+    mode  = '{0}'.format(STYLE['mode'][mode] if mode in STYLE['mode'] else '')
+    fore  = '{0}'.format(STYLE['fore'][fore] if fore in STYLE['fore'] else '')
+    back  = '{0}'.format(STYLE['back'][back] if back in STYLE['back'] else '')
     style = ';'.join([s for s in [mode, fore, back] if s])
-    style = '\033[%sm' % style if style else ''
-    end   = '\033[%sm' % STYLE['default']['end'] if style else ''
-    return '%s%s%s' % (style, string, end)
+    style = '\033[{0}m'.format(style if style else '')
+    end   = '\033[{0}m'.format(STYLE['default']['end'] if style else '')
+    return '{0}{1}{2}'.format(style, string, end)
 
 
 def printWarn(text):
@@ -131,7 +131,7 @@ class ConfError(Exception):
 
 class TipError(Exception):
     '''
-    raise when Tip name not exists 
+    raise when Tip name not exists
     '''
     pass
 
@@ -391,8 +391,8 @@ def ssh_login(hostname, password):
                   --------     over limition   --------------------        ---------
                   | quit | <------------------ |  input password  | -----> | Login |
                   --------                     --------------------        ---------
-                                                
-    """ 
+
+    """
     try:
         ssh = pexpect.spawn('ssh %s' % (hostname))
         winsize = getwinsize();
@@ -665,4 +665,3 @@ if __name__ == '__main__':
         command[optlist[0][0]](args)
     else:
         loginCommand(args)
-
