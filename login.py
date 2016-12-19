@@ -56,8 +56,8 @@ import pprint
 
 __version__ = '1.1.0'
 
-g_LoginFileName = 'login.conf'
-g_EncryptData = 'supercalifragilisticexpiadocious'
+g_login_filename = 'login.conf'
+g_encrypt_data = 'supercalifragilisticexpiadocious'
 STYLE = {
         'fore':
         {
@@ -161,7 +161,7 @@ def _getLoginInfoFromJson():
     raise IOError, ConfError
     '''
     data = {}
-    with open(g_LoginFileName, 'r') as f:
+    with open(g_login_filename, 'r') as f:
        data = json.load(f)
     if not data:
        raise ConfError('Configure file is empty or format error')
@@ -178,11 +178,11 @@ def _incrementSaveLoginInfoToFile(data, isoverload=True):
     '''
     try:
         now = datetime.now()
-        shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
         old_data = _getLoginInfoFromJson()
     except IOError, ConfError:
         pass
-    with open(g_LoginFileName, 'w') as f:
+    with open(g_login_filename, 'w') as f:
         try:
             for i in old_data:
                 if i in data.keys() and isoverload == True:
@@ -204,11 +204,11 @@ def _wholeSaveLoginInfoToFile(data, isoverload=True):
     '''
     try:
         now = datetime.now()
-        shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
         old_data = _getLoginInfoFromJson()
     except IOError, ConfError:
         pass
-    with open(g_LoginFileName, 'w') as f:
+    with open(g_login_filename, 'w') as f:
         try:
             for i in data:
                 if i in old_data.keys() and isoverload == False:
@@ -225,7 +225,7 @@ def wholeSaveLoginInfo(data, isoverload=True):
 def incrementSaveLoginInfo(data, isoverload=True):
     try:
         now = datetime.now()
-        shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
         old_data = _getLoginInfoFromJson()
     except IOError, ConfError:
         pass
@@ -298,7 +298,7 @@ def desEncrypt(key, passwd):
     else:
         add = length - (count % length) + 1
     text = passwd + (' '*add)
-    newkey = key.join(g_EncryptData)[0:32]
+    newkey = key.join(g_encrypt_data)[0:32]
     mode=AES.MODE_CBC
     encryptor = AES.new(newkey, mode, b'0000000000000000')
     ciphertext = encryptor.encrypt(text)
@@ -307,7 +307,7 @@ def desEncrypt(key, passwd):
 
 def desDecrypt(key, passwd):
     mode=AES.MODE_CBC
-    newkey = key.join(g_EncryptData)[0:32]
+    newkey = key.join(g_encrypt_data)[0:32]
     text = base64.b64decode(passwd)
     decryptor = AES.new(newkey, mode, b'0000000000000000')
     ciphertext = decryptor.decrypt(text)
@@ -394,7 +394,7 @@ def ssh_login(hostname, password):
 
     """
     try:
-        ssh = pexpect.spawn('ssh %s' % (hostname))
+        ssh = pexpect.spawn('ssh {0}'.format(hostname))
         winsize = getwinsize();
         while True:
             i = ssh.expect(['(yes/no)\?', 'failed', '[pP]assword', '[#\$] ', 'not known'], timeout=3)
@@ -422,7 +422,7 @@ def ssh_login(hostname, password):
         ssh.close()
 
 
-def input(msg):
+def inputWithPrompt(msg):
     '''
     a base method to prompt msg and get input string
     '''
@@ -479,7 +479,7 @@ def ency(args):
         tips = inputTipNameWithCheckDecrypt()
         login = {}
         key = getpass.getpass('> input key: ')
-        for i in range(len(tips)):
+        for i in enumerate(tips):
             try:
                 login.update(encryptPasswd(key, tips[i]))
             except TipError as e:
@@ -498,7 +498,7 @@ def decy(args):
         tips = inputTipNameWithCheckEncrypt()
         key = getpass.getpass('> input key: ')
         login = {}
-        for i in range(len(tips)):
+        for i in enumerate(tips):
             try:
                 login.update(decryptPasswd(key, tips[i]))
             except TipError as e:
@@ -513,11 +513,11 @@ def decy(args):
 
 
 def add(args):
-    host = input('> input new user@ip: ')
-    passwd = input('> input new password: ')
-    tip = input('> input new tip name: ')
+    host = inputWithPrompt('> input new user@ip: ')
+    passwd = getpass.getpass('> input new password: ')
+    tip = inputWithPrompt('> input new tip name: ')
     key = getpass.getpass('> input new key: ')
-    notice = input('> input new notice: ')
+    notice = inputWithPrompt('> input new notice: ')
     login = {}
     temp = {}
     temp['Password'] = desEncrypt(key, passwd)
@@ -538,7 +538,7 @@ def modKey(args):
     new_key = getpass.getpass('> input new key: ')
     login = {}
     try:
-        for i in range(len(tips)):
+        for i in enumerate(tips):
             try:
                 tip = tips[i]
                 login.update(decryptPasswd(old_key, tip))
@@ -559,14 +559,14 @@ def modKey(args):
 def modPasswd(args):
     tips = inputTipNameWithCheckExist()
     key = getpass.getpass('> input key: ')
-    new_passwd = input('> input new password: ')
+    new_passwd = inputWithPrompt('> input new password: ')
     ency = getAllEncryptLoginInfo()
     tips_ency =  [x for x in tips if x in ency.keys()]
     tips_decy =  [x for x in tips if x not in ency.keys()]
     login = {}
 
     try:
-        for i in range(len(tips_ency)):
+        for i in enumerate(tips_ency):
             try:
                 tip = tips_ency[i]
                 login.update(decryptPasswd(key, tip))
@@ -658,8 +658,8 @@ if __name__ == '__main__':
         printError('ERROR: ' + str(e))
         exit_with_usage()
     # patch: when firtly use, the configure file don't exists, to prompt usage
-    if (not optlist or optlist and '--add' not in optlist[0]) and os.path.exists(g_LoginFileName) == False:
-        printError('ERROR: ' + g_LoginFileName + ' not exist. please use --add option to add new user')
+    if (not optlist or optlist and '--add' not in optlist[0]) and os.path.exists(g_login_filename) == False:
+        printError('ERROR: ' + g_login_filename + ' not exist. please use --add option to add new user')
         exit_with_usage()
     if optlist:
         command[optlist[0][0]](args)
