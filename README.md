@@ -1,4 +1,6 @@
-# 1. Feature
+# ssh-login
+
+## 1. Feature
 
 1. 管理多个帐号，一键 ssh 登录
 2. 密码AES加密，密文存储密码，且只需要记住一个任意长 key，即可解密登录，所有帐号 key 可以相同
@@ -6,17 +8,17 @@
 
 ![](https://github.com/cposture/ssh-login/blob/master/pic/demo.png)
 
-# 2. Todo
+## 2. Todo
 
 1.
 
-# 3. Finished
+## 3. Finished
 
 1.
 
-# 4. Installation
+## 4. Installation
 
-## 4.1 依赖模块
+### 4.1 依赖模块
 
 ```
 1. python 2.6
@@ -28,7 +30,7 @@
 chmod +x login.py
 ```
 
-# 5. Configuration
+## 5. Configuration
 
 > 概念：key 用于 AES 加密密码，初始化加密密码时生成，登录帐号时使用，任意长；tip_name：你帐号的简短小名，登录帐号时使用，任意长，自定义指定于配置文件中
 
@@ -43,7 +45,7 @@ chmod +x login.py
 }
 ```
 
-# 6. Usage
+## 6. Usage
 
 特性：可以使用 tab 键进行 tip_name 补全
 
@@ -84,7 +86,7 @@ Example:
 
 ## 6.1 Example
 
-1. 添加
+### 1. 添加
 
 ```
 ./login.py --add
@@ -95,7 +97,7 @@ Example:
 > input new notice: test string
 ```
 
-2. 登录
+### 2. 登录
 
 ```
 ./login.py
@@ -103,14 +105,14 @@ Example:
 > input key: mykey
 ```
 
-3. 加密
+### 3. 加密
 
 ```
 ./login.py --ency
 > input tip name: all  # 说明：这里 all 代表加密配置文件里的密码（自动排除已加密），或者 可以为 tip_name 列表
 ```
 
-4. 解密
+### 4. 解密
 
 ```
 ./login.py --decy
