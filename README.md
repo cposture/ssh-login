@@ -2,9 +2,9 @@
 
 ## 1. Feature
 
-1. 管理多个帐号，一键 ssh 登录
-2. 密码AES加密，密文存储密码，且只需要记住一个任意长 key，即可解密登录，所有帐号 key 可以相同
-3. 随时添加新账号，修改 key、密码 只需要一条指令
+1. 管理多个帐号，每个帐号一个易记的 tip name，支持 tab 进行 tip name 补全，一键 ssh 登录
+2. 密码 AES 加密，密文存储密码，且只需要记住一个任意长 key，即可解密登录，所有帐号 key 可以相同
+3. 随时添加新账号，修改 key、密码只需要一条指令
 
 ![](https://github.com/cposture/ssh-login/blob/master/pic/demo.png)
 
