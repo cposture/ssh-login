@@ -2,32 +2,36 @@
 #coding=utf-8
 
 """
-This is a auto ssh-login script that also can store your password encryptly.
+This is an auto ssh-login script that also can store your password encryptly.
 Usage:
-./login.py [--add] [--ency] [--decy] [--mod] [--modkey]
-  --add                添加帐号
-  --ency               加密密码，配置文件密码为密文，回车后输入 all 或 tip name 列表
-  --decy               解密密码，配置文件密码为明文，回车后输入 all 或 tip name 列表
-  --mod                修改密码，回车后输入 all 或 tip name 列表
-  --modkey             修改key，回车后输入 all 或 tip name 列表
+  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey]
+  notice: you can hit tab or input 'tip name' or 'all' keyword to select user
+
+  --add                add user
+  --del                delete user
+  --show               show userinfo
+  --ency               encrypt password
+  --decy               decrypt password
+  --mod                modify password
+  --modkey             modify key
 
 Example:
-1. 添加
-./login.py --add
+1. Add user
+  ./login.py --add
   > input new user@ip: root@10.121.123.123
   > input new password: 123
   > input new tip name: testtip
   > input new key: mykey
   > input new notice: test string
-2. 登录
-./login.py
+2. Login
+  ./login.py
   > input tip name: testtip
   > input key: mykey
-3. 加密
-./login.py --ency
-  > input tip name: all  # 说明：这里 all 代表加密配置文件里的密码（自动排除已加密），或者 可以为 tip_name 列表
-4. 解密
-./login.py --decy
+3. Encrypt password
+  ./login.py --ency
+  > input tip name: all  # notice: the keyword 'all' represent all the encrypted password in the configure file
+4. Decrypt password
+  ./login.py --decy
   > input tip name: testtip
   > input key: mykey
 """
@@ -46,70 +50,245 @@ import re
 import shutil
 from Crypto.Cipher import AES
 from datetime import datetime
+import traceback
+import getpass
+import pprint
+
+__version__ = '1.1.0'
 
 g_LoginFileName = 'login.conf'
 g_EncryptData = 'supercalifragilisticexpiadocious'
+STYLE = {
+        'fore':
+        {
+            'black'    : 30,   #  black
+            'red'      : 31,   #  red
+            'green'    : 32,   #  green
+            'yellow'   : 33,   #  yellow
+            'blue'     : 34,   #  blue
+            'purple'   : 35,   #  purple
+            'cyan'     : 36,   #  cyan
+            'white'    : 37,   #  white
+        },
+
+        'back' :
+        {
+            'black'     : 40,  #  black
+            'red'       : 41,  #  red
+            'green'     : 42,  #  green
+            'yellow'    : 43,  #  yellow
+            'blue'      : 44,  #  blue
+            'purple'    : 45,  #  purple
+            'cyan'      : 46,  #  cyan
+            'white'     : 47,  #  white
+        },
+
+        'mode' :
+        {
+            'mormal'    : 0,   #  normal
+            'bold'      : 1,   #  bold
+            'underline' : 4,   #  underline
+            'blink'     : 5,   #  blinking
+            'invert'    : 7,   #  reverse
+            'hide'      : 8,   #  invisible
+        },
+
+        'default' :
+        {
+            'end' : 0,
+        },
+}
+
+
+def UseStyle(string, mode = '', fore = '', back = ''):
+    mode  = '%s' % STYLE['mode'][mode] if STYLE['mode'].has_key(mode) else ''
+    fore  = '%s' % STYLE['fore'][fore] if STYLE['fore'].has_key(fore) else ''
+    back  = '%s' % STYLE['back'][back] if STYLE['back'].has_key(back) else ''
+    style = ';'.join([s for s in [mode, fore, back] if s])
+    style = '\033[%sm' % style if style else ''
+    end   = '\033[%sm' % STYLE['default']['end'] if style else ''
+    return '%s%s%s' % (style, string, end)
+
+
+def printWarn(text):
+    print UseStyle(text, fore = 'yellow')
+
+
+def printError(text):
+    print UseStyle(text, fore = 'red')
+
+
+def printInfo(text):
+    print UseStyle(text, fore = 'green')
+
+
+class ConfError(Exception):
+    '''
+    raise when the Configure file not exists or format error
+    '''
+    pass
+
+
+class TipError(Exception):
+    '''
+    raise when Tip name not exists 
+    '''
+    pass
 
 
 def exit_with_usage():
     print globals()['__doc__']
     os._exit(1)
 
+
+def exit_with_conf_format():
+    print '''
+    {
+        "tip_name":
+        {
+            "HasEncrypt": "False",
+            "Notice": "cgi marchine",
+            "Hostname": "root@101.15.0.13",
+            "Password": "123456"
+        }
+    }
+    '''
+    os._exit(1)
+
+
 def _getLoginInfoFromJson():
+    '''
+    raise IOError, ConfError
+    '''
     data = {}
-    if os.path.exists(g_LoginFileName) == False:
-        return data
     with open(g_LoginFileName, 'r') as f:
-        data = json.load(f)
+       data = json.load(f)
+    if not data:
+       raise ConfError('Configure file is empty or format error')
     return data
 
-def _storeLoginInfoToFile(data, isoverload=False):
-    now = datetime.now()
-    if os.path.exists(g_LoginFileName):
+
+def _incrementSaveLoginInfoToFile(data, isoverload=True):
+    '''
+    raise IOError
+    Usage: incrementally save data to file
+    params:
+        data: dict type, the data want to store in file
+        isoverload: when false, the key that contained by both data and file will not update to file
+    '''
+    try:
+        now = datetime.now()
         shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
-    old_data = _getLoginInfoFromJson()
+        old_data = _getLoginInfoFromJson()
+    except IOError, ConfError:
+        pass
     with open(g_LoginFileName, 'w') as f:
         try:
             for i in old_data:
                 if i in data.keys() and isoverload == True:
                     continue
-                elif i not in data.keys():
+                elif i not in data.keys() or isoverload == False:
                     data[i] = old_data[i]
-            f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
         except Exception as e:
-            f.write(json.dumps(old_data, skipkeys=True, encoding = "utf-8", indent = 4))
-            print str(e)
+            f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
+        f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
+
+
+def _wholeSaveLoginInfoToFile(data, isoverload=True):
+    '''
+    raise IOError
+    Usage: wholely save data to file
+    params:
+        data: dict type, the data want to store in file
+        isoverload: when false, the key that contained by both data and file will not update to file
+    '''
+    try:
+        now = datetime.now()
+        shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        old_data = _getLoginInfoFromJson()
+    except IOError, ConfError:
+        pass
+    with open(g_LoginFileName, 'w') as f:
+        try:
+            for i in data:
+                if i in old_data.keys() and isoverload == False:
+                    data[i] = old_data[i]
+        except Exception as e:
+            f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
+        f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
+
+
+def wholeSaveLoginInfo(data, isoverload=True):
+    _wholeSaveLoginInfoToFile(data, isoverload)
+
+
+def incrementSaveLoginInfo(data, isoverload=True):
+    try:
+        now = datetime.now()
+        shutil.copyfile(g_LoginFileName, g_LoginFileName + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        old_data = _getLoginInfoFromJson()
+    except IOError, ConfError:
+        pass
+    _incrementSaveLoginInfoToFile(data, isoverload)
+
 
 def getLoginInfo():
+    '''
+    return: all userinfo, the ret dict contains tip:userinfo key-value
+    '''
     return _getLoginInfoFromJson()
 
-def saveLoginInfo(data, isoverload=False):
-    _storeLoginInfoToFile(data, isoverload)
 
-def getLoginByMsg(msg='default'):
-    data = getLoginInfo()
-    info = {}
-    info = data[msg]
+def getLoginInfoByTipName(tipname):
+    '''
+    raise getLoginInfo, TipError
+    return: userinfo dict specified by tip name
+    notice: you can use ret['Password'] to get password, but the ret dict don't contain the key of tip name
+    '''
+    try:
+        data = getLoginInfo()
+        info = {}
+        info = data[tipname]
+    except KeyError:
+        raise TipError('Tip not exists')
     return info
 
 
 def getAllDecryptLoginInfo():
+    '''
+    raise getLoginInfo exception
+    return: all decrypt userinfo, the ret dict contains tip:userinfo key-value
+    '''
     data = getLoginInfo()
     ret = {}
     for i in data:
-        if 'HasEncrypt' in data[i].keys() and data[i]['HasEncrypt'].upper().startswith('T'):
+        try:
+            if data[i]['HasEncrypt'].upper().startswith('T'):
+                continue
+            else:
+                ret[i] = data[i]
+        except KeyError as e:
+            printWarn('WARNING: ' + str(e))
             continue
-        else:
-            ret[i] = data[i]
     return ret
 
+
 def getAllEncryptLoginInfo():
+    '''
+    raise getLoginInfo exception
+    return: all encrypt userinfo, the ret dict contains tip:userinfo key-value
+    '''
     data = getLoginInfo()
     ret = {}
     for i in data:
-        if 'HasEncrypt' in data[i].keys() and data[i]['HasEncrypt'].upper().startswith('T'):
-            ret[i] = data[i]
+        try:
+            if data[i]['HasEncrypt'].upper().startswith('T'):
+                ret[i] = data[i]
+        except KeyError as e:
+            printWarn( 'WARNING: ' + str(e))
+            continue
     return ret
+
 
 def desEncrypt(key, passwd):
     length = 16
@@ -121,41 +300,64 @@ def desEncrypt(key, passwd):
     text = passwd + (' '*add)
     newkey = key.join(g_EncryptData)[0:32]
     mode=AES.MODE_CBC
-    encryptor = AES.new(newkey, mode)
+    encryptor = AES.new(newkey, mode, b'0000000000000000')
     ciphertext = encryptor.encrypt(text)
     return base64.b64encode(ciphertext)
+
 
 def desDecrypt(key, passwd):
     mode=AES.MODE_CBC
     newkey = key.join(g_EncryptData)[0:32]
     text = base64.b64decode(passwd)
-    decryptor = AES.new(newkey, mode)
+    decryptor = AES.new(newkey, mode, b'0000000000000000')
     ciphertext = decryptor.decrypt(text)
     return ciphertext.strip()
 
+
 def encryptPasswd(key, tip):
+    '''
+    raise getLoginInfoByTipName, getAllDecryptLoginInfo Exception
+    notice: it will check the given tip whether exists, and when the tip name is 'all' keyword, it will encrypt all unencrypted password
+    '''
     login = {}
     if tip != 'all':
-       login[tip] = getLoginByMsg(tip)
+        login[tip] = getLoginInfoByTipName(tip)
     else:
-       login = getAllDecryptLoginInfo()
+        login = getAllDecryptLoginInfo()
     for i in login:
-       login[i]['Password'] = desEncrypt(key, login[i]['Password'])
-       login[i]['HasEncrypt'] = 'True'
+        try:
+            login[i]['Password'] = desEncrypt(key, login[i]['Password'])
+            login[i]['HasEncrypt'] = 'True'
+        except KeyError as e:
+            printWarn('WARNING: ' + str(e) + ' configure file format error')
+            continue
     return login
 
+
 def decryptPasswd(key, tip):
+   '''
+   raise getLoginInfoByTipName, getAllDecryptLoginInfo Exception
+   notice: it will check the given tip whether exists, and when the tip name is 'all' keyword, it will decrypt all encrypted password
+   '''
    login = {}
    if tip != 'all':
-       login[tip] = getLoginByMsg(tip)
+       login[tip] = getLoginInfoByTipName(tip)
    else:
        login = getAllEncryptLoginInfo()
    for i in login:
-       login[i]['Password'] = desDecrypt(key, login[i]['Password'])
-       login[i]['HasEncrypt'] = 'False'
+       try:
+           login[i]['Password'] = desDecrypt(key, login[i]['Password'])
+           login[i]['HasEncrypt'] = 'False'
+       except KeyError as e:
+            printWarn('WARNING: ' + str(e) + ' configure file format error')
+            continue
    return login
 
+
 def completer(text, state):
+    '''
+    raise getLoginInfo Exception
+    '''
     data = getLoginInfo()
     options = [x for x in data if x.startswith(text)]
     try:
@@ -163,8 +365,10 @@ def completer(text, state):
     except IndexError:
         return None
 
+
 def getwinsize():
-    """This returns the window size of the child tty.
+    """
+    This returns the window size of the child tty.
     The return value is a tuple of (rows, cols).
     """
     if 'TIOCGWINSZ' in dir(termios):
@@ -175,30 +379,53 @@ def getwinsize():
     x = fcntl.ioctl(sys.stdout.fileno(), TIOCGWINSZ, s)
     return struct.unpack('HHHH', x)[0:2]
 
+
 def ssh_login(hostname, password):
+    """
+            -------------------  first login   ---------------------     no      --------
+            |  input user@ip  | -------------> | ask whether login | --------->  | quit |
+            -------------------                ---------------------             --------
+        timeeout/   |              succes               | yes
+     name not known |-----------------------------------|
+                    v                                   v
+                  --------     over limition   --------------------        ---------
+                  | quit | <------------------ |  input password  | -----> | Login |
+                  --------                     --------------------        ---------
+                                                
+    """ 
     try:
         ssh = pexpect.spawn('ssh %s' % (hostname))
         winsize = getwinsize();
-        i = ssh.expect(['[pP]assword', 'continue connecting (yes/no)?'], timeout=3)
-        if i == 0:
-            ssh.sendline(password)
-        elif i == 1:
-            ssh.sendline('yes')
-            ssh.sendline(password)
-        print 'connect success!'
-        print '======================'
+        while True:
+            i = ssh.expect(['(yes/no)\?', 'failed', '[pP]assword', '[#\$] ', 'not known'], timeout=3)
+            #print i, 'ssh.before', ssh.before, 'ssh.after', ssh.after
+            if i == 0:
+                ssh.sendline('yes')
+                ssh.sendline(password)
+            elif i == 2:
+                ssh.sendline(password)
+            elif i == 3:
+                break
+            else:
+	        printError('connect fail, please check ' + hostname + '...' + password)
+                os._exit(1)
+        printInfo('connect success!')
         ssh.setwinsize(winsize[0],winsize[1])
         ssh.interact()
     except pexpect.EOF:
-        print "pexpect EOF error"
+        printError( "pexpect EOF error")
     except pexpect.TIMEOUT:
-        print 'connection TIMEOUT'
+        printError( 'connection TIMEOUT')
     except Exception as e:
         pass
     finally:
         ssh.close()
 
+
 def input(msg):
+    '''
+    a base method to prompt msg and get input string
+    '''
     while(True):
         try:
             res = raw_input(msg)
@@ -208,12 +435,16 @@ def input(msg):
             continue
     return res
 
+
 def inputTipNameWithCheck(data):
+    '''
+    the return value is the tip name list that exists in given data dict
+    '''
     while(True):
        try:
            tiplist = raw_input("> input tip name: ")
            if tiplist == 'all':
-               tips = getLoginInfo().keys()
+               tips = data.keys()
            else:
                tips = tiplist.split()
            tip_exist = [x for x in tips if data and x in data]
@@ -221,136 +452,217 @@ def inputTipNameWithCheck(data):
            if tip_exist and (tiplist == 'all' or not tip_noexist):
                break
            else:
-               print 'Error: tip', tip_noexist,'not invalid!'
+               printError('Error: tip ' +  str(tip_noexist) + ' not invalid!')
        except Exception as e:
            continue
-    print 'Effect tip: ', tip_exist
+    printInfo('Effect tip: ' + str(tip_exist))
     return tip_exist
+
 
 def inputTipNameWithCheckExist():
     data = getLoginInfo()
     return inputTipNameWithCheck(data)
 
+
 def inputTipNameWithCheckEncrypt():
     data = getAllEncryptLoginInfo()
     return inputTipNameWithCheck(data)
+
 
 def inputTipNameWithCheckDecrypt():
     data = getAllDecryptLoginInfo()
     return inputTipNameWithCheck(data)
 
-def inputTipName():
-    while(True):
-      try:
-          tip = raw_input("> input tip name: ")
-          if not tip:
-              break
-      except Exception as e:
-          continue
-    return tip
 
 def ency(args):
-    tips = inputTipNameWithCheckDecrypt()
-    login = {}
-    key = input('> input key: ')
-    for i in range(len(tips)):
-        login.update(encryptPasswd(key, tips[i]))
-    saveLoginInfo(login)
+    try:
+        tips = inputTipNameWithCheckDecrypt()
+        login = {}
+        key = getpass.getpass('> input key: ')
+        for i in range(len(tips)):
+            try:
+                login.update(encryptPasswd(key, tips[i]))
+            except TipError as e:
+                printWarn('WARNING: ' + str(e))
+        incrementSaveLoginInfo(login)
+    except ConfError:
+        traceback.print_exc()
+        exit_with_conf_format()
+    except IOError as e:
+        printError('ERROR: ' + str(e))
+        traceback.print_exc()
+
 
 def decy(args):
-    tips = inputTipNameWithCheckEncrypt()
-    key = input('> input key: ')
-    login = {}
-    for i in range(len(tips)):
-        login.update(decryptPasswd(key, tips[i]))
-    saveLoginInfo(login)
+    try:
+        tips = inputTipNameWithCheckEncrypt()
+        key = getpass.getpass('> input key: ')
+        login = {}
+        for i in range(len(tips)):
+            try:
+                login.update(decryptPasswd(key, tips[i]))
+            except TipError as e:
+                printWarn('WARNING: ' + str(e))
+        incrementSaveLoginInfo(login)
+    except ConfError:
+        traceback.print_exc()
+        exit_with_conf_format()
+    except IOError as e:
+        printError( 'ERROR: ' + str(e))
+        traceback.print_exc()
+
 
 def add(args):
     host = input('> input new user@ip: ')
     passwd = input('> input new password: ')
     tip = input('> input new tip name: ')
-    key = input('> input new key: ')
+    key = getpass.getpass('> input new key: ')
     notice = input('> input new notice: ')
     login = {}
     temp = {}
-
     temp['Password'] = desEncrypt(key, passwd)
     temp['Notice'] = notice
     temp['HasEncrypt'] = 'True'
     temp['Hostname'] = host
-
     login[tip] = temp
-    saveLoginInfo(login)
+    try:
+        incrementSaveLoginInfo(login)
+    except IOError as e:
+        printError('ERROR: ' + str(e))
+        traceback.print_exc()
 
 
 def modKey(args):
-    old_key = input('> input old key: ')
-    new_key = input('> input new key: ')
     tips = inputTipNameWithCheckEncrypt()
+    old_key = getpass.getpass('> input old key: ')
+    new_key = getpass.getpass('> input new key: ')
     login = {}
-    for i in range(len(tips)):
-        tip = tips[i]
-        login.update(decryptPasswd(old_key, tip))
-        login[tip]['Password'] = desEncrypt(new_key, login[tip]['Password'])
-        login[tip]['HasEncrypt'] = 'True'
-    saveLoginInfo(login)
+    try:
+        for i in range(len(tips)):
+            try:
+                tip = tips[i]
+                login.update(decryptPasswd(old_key, tip))
+                login[tip]['Password'] = desEncrypt(new_key, login[tip]['Password'])
+                login[tip]['HasEncrypt'] = 'True'
+            except TipError as e:
+                printWarn('WARNING: ' + str(e))
+                continue
+        incrementSaveLoginInfo(login)
+    except IOError as e:
+        printError('ERROR: ' + str(e))
+        traceback.print_exc()
+    except ConfError:
+        exit_with_conf_format()
+        traceback.print_exc()
+
 
 def modPasswd(args):
-    key = input('> input key: ')
-    new_passwd = input('> input new password: ')
     tips = inputTipNameWithCheckExist()
+    key = getpass.getpass('> input key: ')
+    new_passwd = input('> input new password: ')
     ency = getAllEncryptLoginInfo()
     tips_ency =  [x for x in tips if x in ency.keys()]
     tips_decy =  [x for x in tips if x not in ency.keys()]
     login = {}
 
-    for i in range(len(tips_ency)):
-        tip = tips_ency[i]
-        login.update(decryptPasswd(key, tip))
-        login[tip]['Password'] = desEncrypt(key, new_passwd)
-        login[tip]['HasEncrypt'] = 'True'
-    for i in range(len(tips_decy)):
-        tip = tips_decy[i]
-        login.update(getLoginInfoByMsg(tip))
-        login[tip]['Password'] = new_passwd
-    saveLoginInfo(login)
+    try:
+        for i in range(len(tips_ency)):
+            try:
+                tip = tips_ency[i]
+                login.update(decryptPasswd(key, tip))
+                login[tip]['Password'] = desEncrypt(key, new_passwd)
+                login[tip]['HasEncrypt'] = 'True'
+            except TipError as e:
+                printWarn('WARNING: ' + str(e))
+        for tip in tips_decy:
+            login[tip] = getLoginInfoByTipName(tip)
+            print login
+            login[tip]['Password'] = new_passwd
+        incrementSaveLoginInfo(login)
+    except IOError as e:
+        printError('ERROR: ' + str(e))
+        traceback.print_exc()
+    except ConfError:
+        traceback.print_exc()
+        exit_with_conf_format()
+
+
+def delUser(args):
+    try:
+        tips = inputTipNameWithCheckExist()
+        login = getLoginInfo()
+        for i in tips:
+            try:
+                del login[i]
+            except TipError as e:
+                printWarn('WARNING: ' + str(e))
+        wholeSaveLoginInfo(login)
+        printInfo('delete ' + str(tips) + 'success!')
+    except ConfError:
+        traceback.print_exc()
+        exit_with_conf_format()
+    except IOError as e:
+        printError( 'ERROR: ' + str(e))
+        traceback.print_exc()
+
+
+def showUser(args):
+    try:
+        tips = inputTipNameWithCheckExist()
+        login = getLoginInfo()
+        for i in tips:
+            try:
+                printInfo(i+': ')
+                pprint.pprint(login[i], indent=4)
+            except KeyError as e:
+                printError('Error: ' + str(e))
+    except ConfError:
+        traceback.print_exc()
+        exit_with_conf_format()
+    except IOError as e:
+        printError( 'ERROR: ' + str(e))
+        traceback.print_exc()
+
 
 def loginCommand(args):
     tips = inputTipNameWithCheckExist()
-    key = input('> input key: ')
+    key = getpass.getpass('> input key: ')
     tip = tips[0]
+    try:
+        ency = getAllEncryptLoginInfo()
+        if tip in ency.keys():
+            login = decryptPasswd(key,tip)
+        else:
+            login = getAllDecryptLoginInfo()
+        password = login[tip]['Password']
+        hostname = login[tip]['Hostname']
+        ssh_login(hostname, password)
+    except TipError as e:
+        printWarn('WARNING: ' + str(e))
+    except IOError as e:
+        printError('ERROR: ' + str(e))
+        traceback.print_exc()
+    except ConfError:
+        exit_with_conf_format()
 
-    ency = getAllEncryptLoginInfo()
-    if tip in ency.keys():
-        login = decryptPasswd(key,tip)
-    else:
-        login = getAllDecryptLoginInfo()
 
-    password = login[tip]['Password']
-    hostname = login[tip]['Hostname']
-
-    print 'ssh ' + hostname + '...' + password
-
-    ssh_login(hostname, password)
-
-
-command = {'--ency':ency, '--decy': decy, '--add': add, '--mod':modPasswd, '--modkey':modKey}
+command = {'--ency':ency, '--decy': decy, '--add': add, '--mod':modPasswd, '--modkey':modKey, '--del': delUser, '--show': showUser}
 
 if __name__ == '__main__':
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
-
     try:
-        optlist, args = getopt.getopt(sys.argv[1:], '', ['ency','decy','add', 'mod','modkey'])
-    except Exception, e:
-        print str(e)
+        # optlist contains (verb, value) key-value, and args contains the left args
+        optlist, args = getopt.getopt(sys.argv[1:], '', ['ency','decy','add', 'mod','modkey', 'del', 'show'])
+    except getopt.GetoptError as e:
+        printError('ERROR: ' + str(e))
         exit_with_usage()
-
+    # patch: when firtly use, the configure file don't exists, to prompt usage
     if (not optlist or optlist and '--add' not in optlist[0]) and os.path.exists(g_LoginFileName) == False:
-        print 'ERROR: ' + g_LoginFileName + ' not exist. 请先使用 --add 新增帐号'
+        printError('ERROR: ' + g_LoginFileName + ' not exist. please use --add option to add new user')
         exit_with_usage()
-
     if optlist:
         command[optlist[0][0]](args)
     else:
         loginCommand(args)
+
