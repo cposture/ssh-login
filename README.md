@@ -52,12 +52,12 @@ chmod +x login.py
 ```
 This is a auto ssh-login script that also can store your password encryptly.
 Usage:
-  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey] [--show] [--del]
+  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey] [--show [ency|decy]] [--del]
   notice: you can hit tab or input 'tip name' or 'all' keyword to select user
 
   --add                add user
   --del                delete user
-  --show               show userinfo
+  --show [ency|decy]   show userinfo, if has decy option, it will show the unencrypted password
   --ency               encrypt password
   --decy               decrypt password
   --mod                modify password

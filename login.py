@@ -161,11 +161,19 @@ def _getLoginInfoFromJson():
     raise IOError, ConfError
     '''
     data = {}
-    with open(g_login_filename, 'r') as f:
-       data = json.load(f)
+    try:
+        with open(g_login_filename, 'r') as f:
+           data = json.load(f)
+    except ValueError:
+        raise ConfError('Configure file is empty or format error')
     if not data:
-       raise ConfError('Configure file is empty or format error')
+        raise ConfError('Configure file is empty or format error')
     return data
+
+
+def backupConfFile():
+    now = datetime.now()
+    shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
 
 
 def _incrementSaveLoginInfoToFile(data, isoverload=True):
@@ -176,22 +184,29 @@ def _incrementSaveLoginInfoToFile(data, isoverload=True):
         data: dict type, the data want to store in file
         isoverload: when false, the key that contained by both data and file will not update to file
     '''
+    old_data = {} 
     try:
-        now = datetime.now()
-        shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        #backupConfFile()
         old_data = _getLoginInfoFromJson()
-    except IOError, ConfError:
+    except IOError:
+        pass
+    except ConfError:
         pass
     with open(g_login_filename, 'w') as f:
+        json_str = ''
         try:
             for i in old_data:
                 if i in data.keys() and isoverload == True:
                     continue
                 elif i not in data.keys() or isoverload == False:
                     data[i] = old_data[i]
-        except Exception as e:
-            f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
-        f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
+            json_str = json.dumps(data, skipkeys=True, encoding = "ascii", indent = 4)
+        except UnicodeDecodeError as e:
+            printError('Error: Save ' + g_login_filename + ' failed, maybe key error')
+        if json_str:
+            f.write(json_str)
+        else:
+            printError('Error: Save ' + g_login_filename + ' failed, maybe key error')
 
 
 def _wholeSaveLoginInfoToFile(data, isoverload=True):
@@ -202,20 +217,27 @@ def _wholeSaveLoginInfoToFile(data, isoverload=True):
         data: dict type, the data want to store in file
         isoverload: when false, the key that contained by both data and file will not update to file
     '''
+    old_data = {}
     try:
-        now = datetime.now()
-        shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
+        #backupConfFile()
         old_data = _getLoginInfoFromJson()
-    except IOError, ConfError:
+    except IOError:
+        pass
+    except ConfError:
         pass
     with open(g_login_filename, 'w') as f:
+        json_str = ''
         try:
             for i in data:
                 if i in old_data.keys() and isoverload == False:
                     data[i] = old_data[i]
-        except Exception as e:
-            f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
-        f.write(json.dumps(data, skipkeys=True, encoding = "utf-8", indent = 4))
+            json_str = json.dumps(data, skipkeys=True, encoding = "ascii", indent = 4)
+        except UnicodeDecodeError as e:
+            printError('Error: Save ' + g_login_filename + ' failed, maybe key error')
+        if json_str:
+            f.write(json_str)
+        else:
+            printError('Error: Save ' + g_login_filename + ' failed, maybe key error')
 
 
 def wholeSaveLoginInfo(data, isoverload=True):
@@ -223,12 +245,6 @@ def wholeSaveLoginInfo(data, isoverload=True):
 
 
 def incrementSaveLoginInfo(data, isoverload=True):
-    try:
-        now = datetime.now()
-        shutil.copyfile(g_login_filename, g_login_filename + '.' + str(now.year) + str(now.month) + str(now.day) + str(now.hour) + str(now.minute))
-        old_data = _getLoginInfoFromJson()
-    except IOError, ConfError:
-        pass
     _incrementSaveLoginInfoToFile(data, isoverload)
 
 
@@ -479,9 +495,9 @@ def ency(args):
         tips = inputTipNameWithCheckDecrypt()
         login = {}
         key = getpass.getpass('> input key: ')
-        for i in enumerate(tips):
+        for tip in enumerate(tips):
             try:
-                login.update(encryptPasswd(key, tips[i]))
+                login.update(encryptPasswd(key, tip[1]))
             except TipError as e:
                 printWarn('WARNING: ' + str(e))
         incrementSaveLoginInfo(login)
@@ -498,9 +514,9 @@ def decy(args):
         tips = inputTipNameWithCheckEncrypt()
         key = getpass.getpass('> input key: ')
         login = {}
-        for i in enumerate(tips):
+        for tip in enumerate(tips):
             try:
-                login.update(decryptPasswd(key, tips[i]))
+                login.update(decryptPasswd(key, tip[1]))
             except TipError as e:
                 printWarn('WARNING: ' + str(e))
         incrementSaveLoginInfo(login)
@@ -538,9 +554,8 @@ def modKey(args):
     new_key = getpass.getpass('> input new key: ')
     login = {}
     try:
-        for i in enumerate(tips):
+        for tip in enumerate(tips):
             try:
-                tip = tips[i]
                 login.update(decryptPasswd(old_key, tip))
                 login[tip]['Password'] = desEncrypt(new_key, login[tip]['Password'])
                 login[tip]['HasEncrypt'] = 'True'
@@ -613,6 +628,11 @@ def showUser(args):
         for i in tips:
             try:
                 printInfo(i+': ')
+                if not args or 'ency' in args:
+                    login[i]['Password'] = '******'
+                elif 'decy' in args and login[i]['HasEncrypt'].upper().startswith('T'):
+                    key = getpass.getpass('> input key: ')
+                    login[i]['password'] = desDecrypt(key, login[i]['Password'])
                 pprint.pprint(login[i], indent=4)
             except KeyError as e:
                 printError('Error: ' + str(e))
