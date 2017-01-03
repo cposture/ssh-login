@@ -401,7 +401,7 @@ def ssh_login(hostname, password):
             -------------------  first login   ---------------------     no      --------
             |  input user@ip  | -------------> | ask whether login | --------->  | quit |
             -------------------                ---------------------             --------
-        timeeout/   |              succes               | yes
+        timeeout/   |              success              | yes
      name not known |-----------------------------------|
                     v                                   v
                   --------     over limition   --------------------        ---------
@@ -556,7 +556,7 @@ def modKey(args):
     try:
         for tip in enumerate(tips):
             try:
-                login.update(decryptPasswd(old_key, tip))
+                login.update(decryptPasswd(old_key, tip[1]))
                 login[tip]['Password'] = desEncrypt(new_key, login[tip]['Password'])
                 login[tip]['HasEncrypt'] = 'True'
             except TipError as e:
