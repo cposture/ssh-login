@@ -574,7 +574,7 @@ def modKey(args):
 def modPasswd(args):
     tips = inputTipNameWithCheckExist()
     key = getpass.getpass('> input key: ')
-    new_passwd = inputWithPrompt('> input new password: ')
+    new_passwd = getpass.getpass('> input new password: ')
     ency = getAllEncryptLoginInfo()
     tips_ency =  [x for x in tips if x in ency.keys()]
     tips_decy =  [x for x in tips if x not in ency.keys()]
