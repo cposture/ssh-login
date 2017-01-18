@@ -4,12 +4,12 @@
 """
 This is an auto ssh-login script that also can store your password encryptly.
 Usage:
-  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey]
+  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey] [--show [--ency|--decy]]
   notice: you can hit tab or input 'tip name' or 'all' keyword to select user
 
   --add                add user
   --del                delete user
-  --show               show userinfo
+  --show [--ency|--decy]] show userinfo, when has --ency option, show the userinfo but password is invisible
   --ency               encrypt password
   --decy               decrypt password
   --mod                modify password
@@ -58,6 +58,7 @@ __version__ = '1.1.0'
 
 g_login_filename = 'login.conf'
 g_encrypt_data = 'supercalifragilisticexpiadocious'
+g_debug = False
 STYLE = {
         'fore':
         {
@@ -121,6 +122,8 @@ def printError(text):
 def printInfo(text):
     print UseStyle(text, fore = 'green')
 
+def printDebug(text):
+    print UseStyle(text, fore = 'cyan')
 
 class ConfError(Exception):
     '''
@@ -413,11 +416,11 @@ def ssh_login(hostname, password):
         ssh = pexpect.spawn('ssh {0}'.format(hostname))
         winsize = getwinsize();
         while True:
-            i = ssh.expect(['(yes/no)\?', 'failed', '[pP]assword', '[#\$] ', 'not known'], timeout=3)
-            #print i, 'ssh.before', ssh.before, 'ssh.after', ssh.after
+            i = ssh.expect(['(yes/no)', 'failed', '[pP]assword', '[#\$] ', 'not known'], timeout=3)
+            if g_debug:
+                printDebug(str(i) + ' ssh.before ' + ssh.before + ' ssh.after ' + ssh.after)
             if i == 0:
                 ssh.sendline('yes')
-                ssh.sendline(password)
             elif i == 2:
                 ssh.sendline(password)
             elif i == 3:
@@ -583,7 +586,7 @@ def modPasswd(args):
     try:
         for i in enumerate(tips_ency):
             try:
-                tip = tips_ency[i]
+                tip = i[1]
                 login.update(decryptPasswd(key, tip))
                 login[tip]['Password'] = desEncrypt(key, new_passwd)
                 login[tip]['HasEncrypt'] = 'True'
@@ -645,6 +648,8 @@ def showUser(args):
 
 
 def loginCommand(args):
+    if 'debug' in args:
+        g_debug = True
     tips = inputTipNameWithCheckExist()
     key = getpass.getpass('> input key: ')
     tip = tips[0]
@@ -673,15 +678,19 @@ if __name__ == '__main__':
     readline.parse_and_bind("tab: complete")
     try:
         # optlist contains (verb, value) key-value, and args contains the left args
-        optlist, args = getopt.getopt(sys.argv[1:], '', ['ency','decy','add', 'mod','modkey', 'del', 'show'])
+        optlist, args = getopt.getopt(sys.argv[1:], '', ['ency','decy','add', 'mod','modkey', 'del', 'show', 'debug'])
     except getopt.GetoptError as e:
         printError('ERROR: ' + str(e))
         exit_with_usage()
+    for key, value in optlist:
+        # open debug option
+        if '--debug' == key:
+            g_debug = True
     # patch: when firtly use, the configure file don't exists, to prompt usage
     if (not optlist or optlist and '--add' not in optlist[0]) and os.path.exists(g_login_filename) == False:
         printError('ERROR: ' + g_login_filename + ' not exist. please use --add option to add new user')
         exit_with_usage()
-    if optlist:
+    if optlist and '--debug' !=  optlist[0][0]:
         command[optlist[0][0]](args)
     else:
         loginCommand(args)
