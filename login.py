@@ -4,12 +4,12 @@
 """
 This is an auto ssh-login script that also can store your password encryptly.
 Usage:
-  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey] [--show [--ency|--decy]]
+  ./login.py [--add] [--ency] [--decy] [--mod] [--modkey] [--show [ency|decy]]
   notice: you can hit tab or input 'tip name' or 'all' keyword to select user
 
   --add                add user
   --del                delete user
-  --show [--ency|--decy]] show userinfo, when has --ency option, show the userinfo but password is invisible
+  --show [ency|decy]] show userinfo, when has ency option, show the userinfo but password is invisible
   --ency               encrypt password
   --decy               decrypt password
   --mod                modify password
